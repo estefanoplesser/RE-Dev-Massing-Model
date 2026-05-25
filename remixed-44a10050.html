@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Parc des Docks — 3D Massing Model</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: #2a2e35;
+    color: #f0f2f5;
+  }
+  #canvas-container { width: 100vw; height: 100vh; cursor: grab; }
+  #canvas-container:active { cursor: grabbing; }
+
+  .panel {
+    position: absolute;
+    background: rgba(20, 24, 32, 0.86);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 10px;
+    padding: 16px 18px;
+    font-size: 12px;
+    letter-spacing: 0.2px;
+    box-shadow: 0 10px 32px rgba(0,0,0,0.25);
+  }
+  #title { top: 24px; left: 24px; }
+  #title h1 {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  #title p {
+    margin: 5px 0 0;
+    font-size: 11px;
+    opacity: 0.55;
+    letter-spacing: 0.5px;
+  }
+
+  #legend { top: 24px; right: 24px; min-width: 230px; max-height: calc(100vh - 48px); overflow-y: auto; }
+  .panel h3 {
+    margin: 0 0 10px;
+    font-size: 10px;
+    font-weight: 700;
+    opacity: 0.55;
+    text-transform: uppercase;
+    letter-spacing: 2.2px;
+  }
+  .legend-row {
+    display: flex; align-items: center;
+    padding: 4px 0;
+    font-size: 11.5px;
+  }
+  .swatch {
+    width: 14px; height: 14px;
+    margin-right: 11px;
+    border-radius: 3px;
+    border: 1px solid rgba(255,255,255,0.14);
+    flex-shrink: 0;
+  }
+
+  #stats { bottom: 24px; left: 24px; min-width: 280px; max-height: calc(100vh - 130px); overflow-y: auto; }
+  #stats .row {
+    display: flex;
+    justify-content: space-between;
+    padding: 3px 0;
+    font-size: 11.5px;
+  }
+  #stats .row.divider {
+    border-top: 1px solid rgba(255,255,255,0.1);
+    margin-top: 6px;
+    padding-top: 6px;
+    font-weight: 600;
+  }
+  #stats .row.subdivider {
+    border-top: 1px dashed rgba(255,255,255,0.08);
+    margin-top: 6px;
+    padding-top: 6px;
+  }
+  #stats .row span:first-child { opacity: 0.65; }
+  #stats .row span:last-child { font-variant-numeric: tabular-nums; }
+
+  #help {
+    bottom: 24px; right: 24px;
+    font-size: 10.5px;
+    opacity: 0.65;
+    padding: 10px 14px;
+    display: flex;
+    gap: 14px;
+    align-items: center;
+  }
+  #help kbd {
+    background: rgba(255,255,255,0.09);
+    border-radius: 3px;
+    padding: 2px 6px;
+    font-size: 10px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    margin-right: 4px;
+  }
+  .scale-bar {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 4px;
+    padding-left: 14px;
+    border-left: 1px solid rgba(255,255,255,0.15);
+  }
+  .bar { width: 50px; height: 3px; background: #f0f2f5; border-radius: 1px; }
+</style>
+</head>
+<body>
+<div id="canvas-container"></div>
+
+<div class="panel" id="title">
+  <h1>ZAC des Docks — Master Plan</h1>
+  <p>Parc des Docks (residential) + Costco Saint-Ouen (commercial) · 10.9 ha</p>
+</div>
+
+<div class="panel" id="legend">
+  <h3>Residential · Parc des Docks</h3>
+  <div class="legend-row"><div class="swatch" style="background:#2E5C8A"></div>PBSA · 4 floors (14 m)</div>
+  <div class="legend-row"><div class="swatch" style="background:#1F7A6F"></div>Multifamily · 5 floors (17.5 m)</div>
+  <div class="legend-row"><div class="swatch" style="background:#D4843E"></div>Retail (MFR ground)</div>
+  <div class="legend-row"><div class="swatch" style="background:#4DA6D9"></div>Lake · reed beds</div>
+  <div class="legend-row"><div class="swatch" style="background:#3F7A3F"></div>Tree planting</div>
+  <div class="legend-row"><div class="swatch" style="background:#E8C547"></div>Residents' parking</div>
+  <h3 style="margin-top:14px;">Commercial · Costco ZAC</h3>
+  <div class="legend-row"><div class="swatch" style="background:#e07a1f"></div>Costco warehouse (13 m)</div>
+  <div class="legend-row"><div class="swatch" style="background:#2f6fa8"></div>Retail park · 2 floors</div>
+  <div class="legend-row"><div class="swatch" style="background:#5a9e3a"></div>Logistics L0 / L1</div>
+  <div class="legend-row"><div class="swatch" style="background:#9b6fb0"></div>SME / storage (L2)</div>
+  <div class="legend-row"><div class="swatch" style="background:#1f9c8f"></div>Rooftop leisure</div>
+  <div class="legend-row"><div class="swatch" style="background:#b5359c"></div>Fuel station</div>
+  <div class="legend-row"><div class="swatch" style="background:#9aa0a8"></div>Surface car park</div>
+</div>
+
+<div class="panel" id="stats">
+  <h3>Residential</h3>
+  <div class="row"><span>PBSA (×2)</span><span>7,751 m²</span></div>
+  <div class="row"><span>Multifamily</span><span>7,300 m²</span></div>
+  <div class="row"><span>Lake + reeds</span><span>6,000 m²</span></div>
+  <div class="row"><span>Parking</span><span>5,000 m²</span></div>
+  <div class="row"><span>Plot</span><span>50,000 m²</span></div>
+  <div class="row"><span>GIA · FAR 1.35</span><span>67,504 m²</span></div>
+  <h3 style="margin-top:14px;">Commercial</h3>
+  <div class="row"><span>Costco warehouse</span><span>20,111 m²</span></div>
+  <div class="row"><span>Logistics (×3)</span><span>29,784 m²</span></div>
+  <div class="row"><span>Retail park (×2)</span><span>17,968 m²</span></div>
+  <div class="row"><span>Rooftop leisure</span><span>7,000 m²</span></div>
+  <div class="row"><span>Fuel station</span><span>1,680 m²</span></div>
+  <div class="row"><span>Plot</span><span>59,000 m²</span></div>
+  <div class="row"><span>GFA · FAR 1.30</span><span>76,543 m²</span></div>
+  <div class="row divider"><span>Combined site</span><span>109,000 m²</span></div>
+  <div class="row divider"><span>Combined GFA</span><span>144,047 m²</span></div>
+</div>
+
+<div class="panel" id="help">
+  <span><kbd>Drag</kbd>orbit · <kbd>Scroll</kbd>zoom · <kbd>Right-click</kbd>pan</span>
+  <span class="scale-bar"><span class="bar"></span>50 m</span>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ============================================================
+   PARC DES DOCKS — 3D MASSING MODEL
+   Coordinate system: X = East-West, Z = North-South (-Z = North)
+   Origin at site centre. Units in metres.
+   ============================================================ */
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xe6eaef);
+scene.fog = new THREE.Fog(0xe6eaef, 550, 1200);
+
+const camera = new THREE.PerspectiveCamera(40, window.innerWidth/window.innerHeight, 0.5, 3000);
+camera.position.set(320, 280, 380);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.07;
+controls.target.set(0, 10, 118);   // centred between the two plots
+controls.maxPolarAngle = Math.PI * 0.48;
+controls.minDistance = 100;
+controls.maxDistance = 1200;
+controls.update();
+
+/* ---------- Lighting ---------- */
+scene.add(new THREE.HemisphereLight(0xbccfdc, 0x4a5648, 0.55));
+
+const sun = new THREE.DirectionalLight(0xfff1d6, 1.05);
+sun.position.set(160, 280, 110);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+const s = 280;
+sun.shadow.camera.left = -s;
+sun.shadow.camera.right = s;
+sun.shadow.camera.top = s;
+sun.shadow.camera.bottom = -s;
+sun.shadow.camera.near = 0.5;
+sun.shadow.camera.far = 900;
+sun.shadow.camera.position.z = 100;
+sun.shadow.bias = -0.0008;
+sun.shadow.normalBias = 0.04;
+scene.add(sun);
+
+const fill = new THREE.DirectionalLight(0xc8d8e6, 0.35);
+fill.position.set(-120, 100, -90);
+scene.add(fill);
+
+/* ---------- Materials ---------- */
+const M = {
+  pbsa:    new THREE.MeshLambertMaterial({ color: 0x2E5C8A }),
+  mfr:     new THREE.MeshLambertMaterial({ color: 0x1F7A6F }),
+  retail:  new THREE.MeshLambertMaterial({ color: 0xD4843E }),
+  lake:    new THREE.MeshLambertMaterial({ color: 0x4DA6D9, transparent: true, opacity: 0.92 }),
+  reeds:   new THREE.MeshLambertMaterial({ color: 0x2D5016 }),
+  trunk:   new THREE.MeshLambertMaterial({ color: 0x6e4b2a }),
+  crown:   new THREE.MeshLambertMaterial({ color: 0x3F7A3F }),
+  parking: new THREE.MeshLambertMaterial({ color: 0xE8C547 }),
+  green:   new THREE.MeshLambertMaterial({ color: 0x7DA858 }),
+  tray:    new THREE.MeshLambertMaterial({ color: 0x1d2026 }),
+  // Commercial (Costco ZAC)
+  costco:     new THREE.MeshLambertMaterial({ color: 0xe07a1f }),
+  retailC:    new THREE.MeshLambertMaterial({ color: 0x2f6fa8 }),
+  logistics:  new THREE.MeshLambertMaterial({ color: 0x5a9e3a }),
+  sme:        new THREE.MeshLambertMaterial({ color: 0x9b6fb0 }),
+  leisure:    new THREE.MeshLambertMaterial({ color: 0x1f9c8f }),
+  fuel:       new THREE.MeshLambertMaterial({ color: 0xb5359c }),
+  cpark:      new THREE.MeshLambertMaterial({ color: 0x9aa0a8 }),
+  asphalt:    new THREE.MeshLambertMaterial({ color: 0x3b3f46 }),
+};
+const edgeMat = new THREE.LineBasicMaterial({ color: 0x0f1117, transparent: true, opacity: 0.45 });
+
+/* ---------- Helpers ---------- */
+function box(w, h, d, cx, yBase, cz, mat, opts = {}) {
+  const geo = new THREE.BoxGeometry(w, h, d);
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(cx, yBase + h/2, cz);
+  mesh.castShadow = opts.cast !== false;
+  mesh.receiveShadow = true;
+  scene.add(mesh);
+  if (opts.edges !== false) {
+    const e = new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeMat);
+    e.position.copy(mesh.position);
+    scene.add(e);
+  }
+  return mesh;
+}
+function rect(x1, x2, z1, z2, h, yBase, mat, opts) {
+  return box(x2 - x1, h, z2 - z1, (x1+x2)/2, yBase, (z1+z2)/2, mat, opts);
+}
+
+/* ============================================================
+   SITE BASE — RESIDENTIAL 250 × 200 + COMMERCIAL 250 × 236
+   Combined: 250 wide × 436 deep, residential at z [-100, 100],
+   commercial at z [100, 336].
+   ============================================================ */
+const SITE_W = 250, SITE_D = 200;          // residential dims (kept for trees etc)
+const COMM_D = 236;                         // commercial depth
+const TOTAL_D = SITE_D + COMM_D;            // 436
+
+// dark tray under the entire combined site
+const tray = new THREE.Mesh(new THREE.BoxGeometry(SITE_W + 16, 1.5, TOTAL_D + 16), M.tray);
+tray.position.set(0, -1.0, (SITE_D/2) + (COMM_D - SITE_D)/2);   // shifts south
+tray.position.z = (-SITE_D/2 + (SITE_D + COMM_D)/2);            // = 118
+tray.receiveShadow = true;
+scene.add(tray);
+
+// green ground for the residential plot
+const ground = new THREE.Mesh(new THREE.BoxGeometry(SITE_W, 0.4, SITE_D), M.green);
+ground.position.y = -0.2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// asphalt ground for the commercial plot
+const groundC = new THREE.Mesh(new THREE.BoxGeometry(SITE_W, 0.4, COMM_D), M.asphalt);
+groundC.position.set(0, -0.2, 100 + COMM_D/2);   // sits south of residential
+groundC.receiveShadow = true;
+scene.add(groundC);
+
+// plot divider strip (paved boundary between residential & commercial)
+const dividerMat = new THREE.MeshLambertMaterial({ color: 0x14181d });
+const divider = new THREE.Mesh(new THREE.BoxGeometry(SITE_W + 8, 0.5, 4), dividerMat);
+divider.position.set(0, 0.05, 100);
+scene.add(divider);
+
+// subtle plot outlines
+const outRes = new THREE.LineSegments(
+  new THREE.EdgesGeometry(new THREE.BoxGeometry(SITE_W, 0.4, SITE_D)),
+  new THREE.LineBasicMaterial({ color: 0x222, transparent: true, opacity: 0.3 })
+);
+scene.add(outRes);
+const outCom = new THREE.LineSegments(
+  new THREE.EdgesGeometry(new THREE.BoxGeometry(SITE_W, 0.4, COMM_D)),
+  new THREE.LineBasicMaterial({ color: 0x222, transparent: true, opacity: 0.3 })
+);
+outCom.position.set(0, 0, 100 + COMM_D/2);
+scene.add(outCom);
+
+/* ============================================================
+   PBSA — 4 FLOORS × 3.5 m = 14 m
+   ============================================================ */
+const FLOOR = 3.5;
+const H_PBSA = 4 * FLOOR;
+
+// PBSA 1 (upper west): 66 × 71.23 = 4,701 m²
+rect(-110, -44, -82, -10.77, H_PBSA, 0, M.pbsa);
+
+// PBSA 2 (lower west): 61 × 50 = 3,050 m²
+// (gap to PBSA 1 reduced from ~40 m to ~13 m)
+rect(-110, -49, 2, 52, H_PBSA, 0, M.pbsa);
+
+/* ============================================================
+   MFR — 5 FLOORS × 3.5 m = 17.5 m. L-shape, retail at GF.
+   Top bar 115 × 30 + Right bar 41 × 94 = 7,304 m² ≈ 7,300
+   ============================================================ */
+const H_MFR = 5 * FLOOR;
+const H_RETAIL = FLOOR;
+const H_MFR_UPPER = H_MFR - H_RETAIL;
+
+// Ground floor retail (full L-shape footprint)
+rect(10, 125, -100, -70, H_RETAIL, 0, M.retail);
+rect(84, 125, -70, 24, H_RETAIL, 0, M.retail);
+
+// Upper 4 residential floors
+rect(10, 125, -100, -70, H_MFR_UPPER, H_RETAIL, M.mfr);
+rect(84, 125, -70, 24, H_MFR_UPPER, H_RETAIL, M.mfr);
+
+/* ============================================================
+   LAKE + REED BEDS — Seine-fed, area = π × 32 × 60 = 6,032 m²
+   ============================================================ */
+const lake = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.6, 96), M.lake);
+lake.scale.set(32, 1, 60);
+lake.position.set(-10, 0.08, -15);
+lake.receiveShadow = true;
+scene.add(lake);
+
+// thin water-edge ring
+const edgePts = [];
+for (let i = 0; i <= 96; i++) {
+  const t = (i / 96) * Math.PI * 2;
+  edgePts.push(new THREE.Vector3(Math.cos(t) * 32, 0.4, Math.sin(t) * 60));
+}
+const edgeGeo = new THREE.BufferGeometry().setFromPoints(edgePts);
+const edgeLine = new THREE.Line(edgeGeo, new THREE.LineBasicMaterial({ color: 0x1a4a6e, transparent: true, opacity: 0.5 }));
+edgeLine.position.set(-10, 0, -15);
+scene.add(edgeLine);
+
+// Reed beds — smaller concentric ellipse, slightly raised
+const reeds = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1.0, 48), M.reeds);
+reeds.scale.set(14, 1, 34);
+reeds.position.set(-10, 0.55, -15);
+reeds.castShadow = true;
+reeds.receiveShadow = true;
+scene.add(reeds);
+
+/* ============================================================
+   PARKING — surface, 5,000 m² / 120 units
+   ============================================================ */
+const H_PARK = 0.18;
+// 20-unit strip (west, wider and pushed north): 13 × 75 = 975 m²
+rect(-125, -112, -85, -10, H_PARK, 0.05, M.parking, { cast: false });
+// 100-unit lot tucked into the L's INSIDE CORNER at (84, -70): 60 × 67 = 4,020 m²
+rect(24, 84, -70, -3, H_PARK, 0.05, M.parking, { cast: false });
+
+// parking stripes (visual hint of bays)
+function parkingStripes(x1, x2, z1, z2, axis = 'z', spacing = 5) {
+  const stripeMat = new THREE.LineBasicMaterial({ color: 0x6e5a1f, transparent: true, opacity: 0.6 });
+  const y = H_PARK + 0.06;
+  if (axis === 'z') {
+    for (let z = z1 + spacing; z < z2; z += spacing) {
+      const pts = [new THREE.Vector3(x1, y, z), new THREE.Vector3(x2, y, z)];
+      scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), stripeMat));
+    }
+  } else {
+    for (let x = x1 + spacing; x < x2; x += spacing) {
+      const pts = [new THREE.Vector3(x, y, z1), new THREE.Vector3(x, y, z2)];
+      scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), stripeMat));
+    }
+  }
+}
+parkingStripes(-125, -112, -85, -10, 'z', 5);   // west: bays run east-west
+parkingStripes(24, 84, -70, -3, 'x', 5);         // L-corner: bays run north-south
+
+/* ============================================================
+   TREE PLANTING — diagonal cluster south-east of lake (per plan)
+   ============================================================ */
+function addTree(x, z, scale = 1) {
+  const tr = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.4 * scale, 0.55 * scale, 3.2 * scale, 6),
+    M.trunk
+  );
+  tr.position.set(x, 1.6 * scale, z);
+  tr.castShadow = true;
+  scene.add(tr);
+
+  const cr = new THREE.Mesh(
+    new THREE.ConeGeometry(2.8 * scale, 5.5 * scale, 8),
+    M.crown
+  );
+  cr.position.set(x, 5.6 * scale, z);
+  cr.castShadow = true;
+  scene.add(cr);
+}
+
+// Trees south of the new L-corner parking, acting as buffer to southern green
+const mainCluster = [
+  [28, 5, 1.0],  [38, 8, 0.95], [48, 5, 1.05], [58, 8, 1.0],
+  [68, 5, 0.95], [78, 8, 1.0],
+  [30, 18, 0.95], [42, 22, 1.0], [55, 18, 1.05], [68, 22, 0.95], [80, 18, 1.0],
+  [35, 35, 1.0], [50, 38, 0.95], [65, 35, 1.05], [78, 40, 0.9],
+];
+mainCluster.forEach(t => addTree(t[0], t[1], t[2]));
+
+// Scatter trees along the southern green area (avoiding all buildings + lake)
+const scatterTrees = [
+  [-100, 70, 0.9], [-80, 82, 0.95], [-60, 75, 0.85], [-40, 86, 1.0],
+  [-20, 80, 0.9], [0, 90, 0.95],   [20, 80, 0.85],   [40, 92, 1.0],
+  [60, 78, 0.95],  [85, 85, 0.9],   [105, 80, 0.85],  [115, 92, 0.9],
+  // south of PBSA 2
+  [-105, 62, 0.95], [-90, 65, 0.9], [-72, 60, 0.95], [-55, 63, 0.9],
+];
+scatterTrees.forEach(t => addTree(t[0], t[1], t[2]));
+
+/* ============================================================
+   COMMERCIAL · COSTCO ZAC — 250 × 236 m plot, south of residential
+   Source coords translated: worldX = internalX − 125
+                             worldZ = internalZ + 100
+   ============================================================ */
+
+// ---- 1. COSTCO WAREHOUSE — north band, single storey ----
+//   230 × 74 = 17,020 m², h = 13 m
+const H_COS = 13;
+rect(-117, 113, 108, 182, H_COS, 0, M.costco);
+
+// ---- 1b. COSTCO NE CORNER BLOCK — fills the NE entrance gap ----
+//   82 × 37.7 = 3,091 m² · together with §1 the Costco footprint is an L
+rect(35, 117, 182, 219.7, H_COS, 0, M.costco);
+
+// ---- 2. LOGISTICS HUB — 3 floors stacked on the rail (west) edge ----
+//   68 × 146 = 9,928 m²/floor · L0 throughput · L1 fulfilment · L2 SME/storage
+const H_LOG = 7;
+rect(-117, -49, 182, 328, H_LOG, 0,         M.logistics);   // L0
+rect(-117, -49, 182, 328, H_LOG, H_LOG,     M.logistics);   // L1
+rect(-117, -49, 182, 328, H_LOG, 2*H_LOG,   M.sme);         // L2 (different colour)
+
+// ---- 3. RETAIL PARK — U-shape opening east, 2 floors × ~9,000 m² ----
+const H_RET = 7.5;
+// Ground floor (3 arms)
+rect(-49,    35,    182,   219.7, H_RET, 0,      M.retailC);  // north arm
+rect(-49,   -11.3,  219.7, 290.3, H_RET, 0,      M.retailC);  // west arm
+rect(-49,    35,    290.3, 328,   H_RET, 0,      M.retailC);  // south arm
+// First floor
+rect(-49,    35,    182,   219.7, H_RET, H_RET,  M.retailC);
+rect(-49,   -11.3,  219.7, 290.3, H_RET, H_RET,  M.retailC);
+rect(-49,    35,    290.3, 328,   H_RET, H_RET,  M.retailC);
+
+// ---- 4. SURFACE CAR PARK — inside the U, open to east + south ----
+rect(-11.3, 117, 219.7, 290.3, 0.20, 0.05, M.cpark, { cast: false });
+// south bay between south arm and the fuel pad
+rect(35,    75,  290.3, 328,   0.20, 0.05, M.cpark, { cast: false });
+
+// white parking stripes on the asphalt
+function whiteStripes(x1, x2, z1, z2, axis, spacing) {
+  const m = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35 });
+  const y = 0.27;
+  if (axis === 'x') {
+    for (let x = x1 + spacing; x < x2; x += spacing) {
+      const pts = [new THREE.Vector3(x, y, z1 + 1), new THREE.Vector3(x, y, z2 - 1)];
+      scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), m));
+    }
+  } else {
+    for (let z = z1 + spacing; z < z2; z += spacing) {
+      const pts = [new THREE.Vector3(x1 + 1, y, z), new THREE.Vector3(x2 - 1, y, z)];
+      scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), m));
+    }
+  }
+}
+whiteStripes(-11.3, 117, 219.7, 290.3, 'x', 6);
+whiteStripes(35,    75,  290.3, 328,   'x', 6);
+
+// ---- 5. COSTCO FUEL STATION — SE corner, separate pad ----
+//   42 × 40 = 1,680 m² · canopy floats at h=5.2 over 3 pump islands
+rect(75, 117, 288, 328, 1.6, 5.2, M.fuel);          // canopy
+function fuelPump(cx, cz) {
+  const p = new THREE.Mesh(new THREE.BoxGeometry(3, 3.2, 8), M.fuel);
+  p.position.set(cx, 1.6, cz);
+  p.castShadow = true;
+  scene.add(p);
+}
+fuelPump(84,  308);
+fuelPump(96,  308);
+fuelPump(108, 308);
+
+// ---- 6. ROOFTOP LEISURE PARK — 7,000 m² on the NW roof ----
+//   68 × ~103 m · sits on logistics roof at y=21, overhangs Costco roof (y=13)
+const H_LEIS = 6;
+const LEIS_Y = 3 * H_LOG;                           // 21 m
+rect(-117, -49, 110, 213, H_LEIS, LEIS_Y, M.leisure);
+
+// Three zones marked as flat pads on top of the deck
+const zoneMat = new THREE.MeshLambertMaterial({ color: 0x14655c });
+const ZONE_TOP = LEIS_Y + H_LEIS;
+rect(-114, -52, 113, 148, 0.2, ZONE_TOP, zoneMat, { cast: false, edges: false });   // sports & padel
+rect(-114, -52, 148, 181, 0.2, ZONE_TOP, zoneMat, { cast: false, edges: false });   // bar & restaurant
+rect(-114, -52, 181, 210, 0.2, ZONE_TOP, zoneMat, { cast: false, edges: false });   // events terrace
+
+/* ============================================================
+   NORTH ARROW
+   ============================================================ */
+const naDisc = new THREE.Mesh(
+  new THREE.CircleGeometry(5, 32),
+  new THREE.MeshBasicMaterial({ color: 0xf0f2f5 })
+);
+naDisc.rotation.x = -Math.PI / 2;
+naDisc.position.set(-105, 0.02, 88);
+scene.add(naDisc);
+
+const naArrow = new THREE.Mesh(
+  new THREE.ConeGeometry(2, 6, 4),
+  new THREE.MeshBasicMaterial({ color: 0xd14545 })
+);
+naArrow.position.set(-105, 0.04, 88);
+naArrow.rotation.x = -Math.PI / 2;
+naArrow.rotation.z = Math.PI;  // point north (-Z)
+// Move the cone so it points to -Z (north) on the disc
+// Cone default points along +Y; we lay it flat then rotate
+naArrow.rotation.set(-Math.PI/2, 0, 0);
+naArrow.position.set(-105, 0.05, 85);
+scene.add(naArrow);
+
+const naRing = new THREE.Mesh(
+  new THREE.RingGeometry(4.8, 5.2, 32),
+  new THREE.MeshBasicMaterial({ color: 0x222, side: THREE.DoubleSide })
+);
+naRing.rotation.x = -Math.PI / 2;
+naRing.position.set(-105, 0.06, 88);
+scene.add(naRing);
+
+/* ============================================================
+   ANIMATION
+   ============================================================ */
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Slow auto-rotation only until user interacts
+let userInteracted = false;
+controls.addEventListener('start', () => { userInteracted = true; });
+
+function animate() {
+  requestAnimationFrame(animate);
+  if (!userInteracted) {
+    const t = performance.now() * 0.00006;
+    const cx = 0, cz = 118;        // centre of combined plot
+    const R = 500;
+    camera.position.x = cx + Math.sin(t) * R;
+    camera.position.z = cz + Math.cos(t) * R;
+    camera.position.y = 320;
+    camera.lookAt(cx, 10, cz);
+  }
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>
